@@ -106,6 +106,19 @@
       color: #888;
       margin-bottom: 0.6rem;
     }
+    .section-hybrid h3 { color: #4f6ef7; }
+    .hybrid-badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: #eef0ff;
+      color: #4f6ef7;
+      border: 1px solid #c5caff;
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+    }
 
     .issue-card {
       border-radius: 6px;
@@ -213,6 +226,11 @@
     <h2>Results</h2>
     <div id="verdict-box"></div>
 
+    <div class="comparator-section section-hybrid">
+      <h3>Hybrid Result <span class="hybrid-badge">Recommended</span></h3>
+      <div id="hybrid-issues"></div>
+    </div>
+
     <div class="comparator-section">
       <h3>AI Analysis (Groq LLM)</h3>
       <div id="llm-issues"></div>
@@ -226,6 +244,7 @@
     <div class="meta-row">
       <span>Baseline latency: <b id="baseline-latency">—</b></span>
       <span>LLM latency: <b id="llm-latency">—</b></span>
+      <span>Hybrid latency: <b id="hybrid-latency">—</b></span>
     </div>
     <div id="agreement-box"></div>
   </div>
@@ -313,15 +332,16 @@
       const data = await r.json();
 
       const verdictBox = document.getElementById("verdict-box");
-      if (!data.llm.issues.length && !data.baseline.issues.length) {
+      if (!data.hybrid.issues.length) {
         verdictBox.className = "verdict-box verdict-clean";
         verdictBox.textContent = "No issues found. The summary accurately reflects the transcript.";
       } else {
         verdictBox.className = "verdict-box verdict-issues";
         verdictBox.textContent =
-          `Found ${data.llm.issues.length} issue(s) via AI analysis. The summary may not fully represent the transcript.`;
+          `Found ${data.hybrid.issues.length} issue(s) after cross-validation. The summary may not fully represent the transcript.`;
       }
 
+      renderIssues("hybrid-issues",   data.hybrid.issues);
       renderIssues("llm-issues",      data.llm.issues);
       renderIssues("baseline-issues", data.baseline.issues);
 
@@ -329,6 +349,8 @@
         `${(data.baseline.latency_seconds * 1000).toFixed(1)} ms`;
       document.getElementById("llm-latency").textContent =
         `${(data.llm.latency_seconds * 1000).toFixed(0)} ms`;
+      document.getElementById("hybrid-latency").textContent =
+        `${(data.hybrid.latency_seconds * 1000).toFixed(0)} ms`;
 
       // Agreement summary
       const ag = data.agreement;

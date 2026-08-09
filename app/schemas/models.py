@@ -36,6 +36,7 @@ class ComparatorName(str, Enum):
     """Identifies which comparator produced a result."""
     BASELINE = "baseline"
     LLM = "llm"
+    HYBRID = "hybrid"  # merged result combining baseline + LLM
 
 
 # ---------------------------------------------------------------------------

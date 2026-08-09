@@ -59,6 +59,7 @@ def build_single_report_data(
     summary: str,
     baseline_result: ComparatorResult,
     llm_result: ComparatorResult,
+    hybrid_result: ComparatorResult | None = None,
 ) -> dict:
     """Build a serialisable dict for the single-input PDF renderer."""
     b_issues = [{"type": i.issue_type.value, "description": i.description,
@@ -67,10 +68,16 @@ def build_single_report_data(
     l_issues = [{"type": i.issue_type.value, "description": i.description,
                  "transcript_excerpt": i.transcript_excerpt, "summary_excerpt": i.summary_excerpt}
                 for i in llm_result.issues]
+    h_issues = [{"type": i.issue_type.value, "description": i.description,
+                 "transcript_excerpt": i.transcript_excerpt, "summary_excerpt": i.summary_excerpt,
+                 "confidence": i.confidence}
+                for i in (hybrid_result.issues if hybrid_result else [])]
 
-    all_types = {i["type"] for i in b_issues + l_issues}
+    # Verdict is driven by the hybrid result (most reliable)
+    verdict_issues = h_issues if hybrid_result else l_issues
+    all_types = {i["type"] for i in verdict_issues}
     verdict = "No issues found. The summary accurately reflects the transcript." if not all_types else (
-        f"Found {len(l_issues)} issue(s) in the summary. "
+        f"Found {len(verdict_issues)} issue(s) after cross-validation. "
         "The summary does not fully or accurately represent the transcript."
     )
 
@@ -80,9 +87,11 @@ def build_single_report_data(
         "transcript": transcript,
         "summary": summary,
         "verdict": verdict,
+        "hybrid_issues": h_issues,
         "baseline_issues": b_issues,
         "llm_issues": l_issues,
         "baseline_latency": baseline_result.latency_seconds,
         "llm_latency": llm_result.latency_seconds,
+        "hybrid_latency": hybrid_result.latency_seconds if hybrid_result else 0.0,
         "issue_types_found": sorted(all_types) if all_types else [],
     }

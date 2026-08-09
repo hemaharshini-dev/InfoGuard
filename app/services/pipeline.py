@@ -11,6 +11,7 @@ run_single()         — sync, used by /compare and /report/compare
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from app.comparators.baseline import BaselineComparator
+from app.comparators.hybrid import HybridComparator
 from app.comparators.llm import LLMComparator
 from app.evaluation.benchmark import load_benchmark
 from app.evaluation.scorer import score
@@ -42,11 +43,13 @@ def run_benchmark_sync() -> EvaluationReport:
 
 
 def run_single(transcript: str, summary: str) -> dict:
-    """Run both comparators on a single transcript/summary pair and return their results."""
+    """Run all three comparators on a single transcript/summary pair and return their results."""
     input_ = ComparisonInput(transcript=transcript, summary=summary)
     baseline = BaselineComparator()
     llm = LLMComparator()
+    hybrid = HybridComparator()
     return {
         "baseline": baseline.compare(input_),
         "llm": llm.compare(input_),
+        "hybrid": hybrid.compare(input_),
     }
