@@ -45,6 +45,7 @@ _GLOSSARY_SINGLE = {
     "Accuracy":             "How often the method correctly identified whether a problem exists or not.",
     "Speed":                "How long the method took to run. Lower is faster.",
     "Baseline":             "The rule-based method — fast, deterministic, uses pattern matching.",
+    "Hybrid":               "The merged method — combines baseline and LLM outputs to keep confirmed issues and suppress noise.",
     "LLM / Groq":           "The AI method — slower, uses a language model to reason about the text.",
 }
 
@@ -172,6 +173,9 @@ def _glossary(glossary: dict, s) -> list:
 # ---------------------------------------------------------------------------
 def _render_single(data: dict, story: list, s):
     has_issues = bool(data["issue_types_found"])
+    has_hybrid = bool(data.get("hybrid_issues")) or data.get("hybrid_latency", 0.0) > 0.0
+    primary_label = "Hybrid Analysis (Recommended)" if has_hybrid else "AI Analysis (Groq)"
+    primary_issues = data["hybrid_issues"] if has_hybrid else data["llm_issues"]
 
     # 1. Overall Verdict
     story.append(Paragraph("Overall Verdict", s["H2"]))
@@ -189,16 +193,19 @@ def _render_single(data: dict, story: list, s):
     story.append(Paragraph(data["summary"], s["Body"]))
     story.append(Spacer(1, 0.25 * cm))
 
-    # 3. Issues Found — AI primary
+    # 3. Issues Found — hybrid primary when available
     story.append(Paragraph("Issues Found", s["H2"]))
     story.append(Paragraph(
+        f"<b>{primary_label}</b> — primary result. "
+        "The hybrid method merges rule-based and AI findings, keeping confirmed issues and suppressing noise."
+        if has_hybrid else
         "<b>AI Analysis (Groq)</b> — primary result. "
         "The AI reads both texts and reasons about what is missing, wrong, or fabricated.",
         s["Body"]
     ))
     story.append(Spacer(1, 0.15 * cm))
-    if data["llm_issues"]:
-        for issue in data["llm_issues"]:
+    if primary_issues:
+        for issue in primary_issues:
             story += _issue_card(issue, s)
     else:
         story.append(Paragraph(
@@ -219,6 +226,20 @@ def _render_single(data: dict, story: list, s):
         story.append(Paragraph("No issues detected.", s["Body"]))
     story.append(Spacer(1, 0.25 * cm))
 
+    if has_hybrid:
+        story.append(Paragraph(
+            "<b>Hybrid Analysis</b> — combines baseline precision with LLM reasoning. "
+            "This is the recommended view when both methods are available.",
+            s["Body"]
+        ))
+        story.append(Spacer(1, 0.15 * cm))
+        if data["hybrid_issues"]:
+            for issue in data["hybrid_issues"]:
+                story += _issue_card(issue, s)
+        else:
+            story.append(Paragraph("No issues detected by the hybrid method.", s["Body"]))
+        story.append(Spacer(1, 0.25 * cm))
+
     # 4. Approach Comparison (accuracy, speed, advantages, limitations)
     story.append(Paragraph("Approach Comparison", s["H2"]))
     story.append(Paragraph(
@@ -228,29 +249,34 @@ def _render_single(data: dict, story: list, s):
     story.append(Spacer(1, 0.15 * cm))
 
     comp_rows = [
-        ["", _p("<b>Rule-Based (Baseline)</b>", s["Cell"]), _p("<b>AI Analysis (Groq)</b>", s["Cell"])],
+        ["", _p("<b>Rule-Based (Baseline)</b>", s["Cell"]), _p("<b>Hybrid</b>", s["Cell"]), _p("<b>AI Analysis (Groq)</b>", s["Cell"])],
         [_p("<b>How it works</b>", s["Cell"]),
          _p("Extracts facts using pattern matching and checks if they appear in both texts.", s["Cell"]),
+         _p("Combines baseline and AI results, keeping confirmed issues and reducing obvious noise.", s["Cell"]),
          _p("Sends the transcript and summary to an LLM and asks it to reason about mismatches.", s["Cell"])],
         [_p("<b>Accuracy</b>", s["Cell"]),
          _p("Good at catching exact fact differences — numbers, dates, identifiers. Misses meaning-level issues.", s["Cell"]),
+         _p("Balanced — keeps the AI's context awareness while filtering out weaker baseline-only noise.", s["Cell"]),
          _p("Better overall — understands context, paraphrasing, and subtle contradictions.", s["Cell"])],
         [_p("<b>Speed</b>", s["Cell"]),
          _p(f"{data['baseline_latency']*1000:.1f} ms", s["Cell"]),
+         _p(f"{data['hybrid_latency']*1000:.0f} ms", s["Cell"]),
          _p(f"{data['llm_latency']*1000:.0f} ms", s["Cell"])],
         [_p("<b>Advantages</b>", s["Cell"]),
          _p("Free, runs locally, fully deterministic, no API needed, extremely fast.", s["Cell"]),
+         _p("Usually the best default for end users: more reliable than either method alone.", s["Cell"]),
          _p("Understands language naturally, fewer false alarms, produces human-readable descriptions.", s["Cell"])],
         [_p("<b>Limitations</b>", s["Cell"]),
          _p("Cannot understand meaning, flags individual tokens separately, produces noise.", s["Cell"]),
+         _p("Depends on both component methods, so its output still reflects their weaknesses.", s["Cell"]),
          _p("Slower, requires internet and API key, non-deterministic, has cost.", s["Cell"])],
     ]
-    tc = Table(comp_rows, colWidths=[3.2 * cm, 7.15 * cm, 7.15 * cm])
+    tc = Table(comp_rows, colWidths=[3.0 * cm, 4.6 * cm, 4.6 * cm, 5.3 * cm])
     tc.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, 0),  _BRAND),
         ("TEXTCOLOR",     (0, 0), (-1, 0),  colors.white),
         ("BACKGROUND",    (0, 1), (0, -1),  _LIGHT),
-        ("FONTSIZE",      (0, 0), (-1, -1), 8),
+        ("FONTSIZE",      (0, 0), (-1, -1), 7),
         ("GRID",          (0, 0), (-1, -1), 0.4, _DIVIDER),
         ("VALIGN",        (0, 0), (-1, -1), "TOP"),
         ("TOPPADDING",    (0, 0), (-1, -1), 5),
@@ -263,17 +289,19 @@ def _render_single(data: dict, story: list, s):
 
     # 5. Bottom Line
     story.append(Paragraph("Bottom Line", s["H2"]))
-    llm_count = len(data["llm_issues"])
-    if llm_count == 0:
+    verdict_issues = data["hybrid_issues"] if has_hybrid else data["llm_issues"]
+    verdict_label = "Hybrid" if has_hybrid else "AI"
+    verdict_count = len(verdict_issues)
+    if verdict_count == 0:
         story.append(Paragraph(
             "Both methods agree: the summary is accurate. No issues were found.", s["Body"]
         ))
     else:
         story.append(Paragraph(
-            f"The AI found <b>{llm_count} issue(s)</b> in the summary:", s["Body"]
+            f"The {verdict_label} method found <b>{verdict_count} issue(s)</b> in the summary:", s["Body"]
         ))
         story.append(Spacer(1, 0.1 * cm))
-        for i, issue in enumerate(data["llm_issues"], 1):
+        for i, issue in enumerate(verdict_issues, 1):
             _, _, label = _ISSUE_META.get(issue["type"], (_GRAY, _LGRAY, issue["type"].title()))
             story.append(_p(f"{i}. <b>{label}</b> — {issue['description']}", s["Body"]))
     story.append(Spacer(1, 0.25 * cm))

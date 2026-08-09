@@ -9,24 +9,27 @@ An AI evaluation framework that compares transcripts against their summaries, de
 The same information can exist in different formats. InfoGuard takes a **transcript** (the source of truth) and a **summary** (a shorter version of it) and automatically finds where they disagree.
 
 It detects:
+
 - **Missing information** — facts in the transcript that are absent from the summary
 - **Incorrect information** — facts the summary states wrongly
 - **Conflicting information** — information that clashes without resolution
 - **Extra information** — things the summary adds that were never in the transcript (hallucinations)
 
+InfoGuard also combines the rule-based and LLM results into a **hybrid** output for the comparison report, so the PDF can present the merged result as the primary view when available.
+
 ---
 
 ## Tech Stack
 
-| Component | Technology |
-|---|---|
-| API | FastAPI + Uvicorn |
-| Schemas | Pydantic v2 |
+| Component      | Technology                           |
+| -------------- | ------------------------------------ |
+| API            | FastAPI + Uvicorn                    |
+| Schemas        | Pydantic v2                          |
 | LLM Comparator | Groq API (`llama-3.3-70b-versatile`) |
-| PDF Reports | ReportLab |
-| Tests | pytest |
-| Environment | python-dotenv + pydantic-settings |
-| Runtime | Python 3.11+ |
+| PDF Reports    | ReportLab                            |
+| Tests          | pytest                               |
+| Environment    | python-dotenv + pydantic-settings    |
+| Runtime        | Python 3.11+                         |
 
 ---
 
@@ -101,13 +104,13 @@ InfoGuard includes a built-in web interface served at `http://localhost:8000`.
 
 ## API Endpoints
 
-| Method | Endpoint | What it does |
-|---|---|---|
-| `GET` | `/health` | Returns API status and active model |
-| `POST` | `/compare` | Runs both comparators on a transcript+summary pair, returns JSON |
-| `POST` | `/benchmark` | Runs the full 12-case benchmark, returns evaluation report as JSON |
-| `POST` | `/report` | Runs benchmark and returns a PDF evaluation report |
-| `POST` | `/report/compare` | Runs both comparators on your input and returns a PDF comparison report |
+| Method | Endpoint          | What it does                                                                         |
+| ------ | ----------------- | ------------------------------------------------------------------------------------ |
+| `GET`  | `/health`         | Returns API status and active model                                                  |
+| `POST` | `/compare`        | Runs both comparators on a transcript+summary pair, returns JSON                     |
+| `POST` | `/benchmark`      | Runs the full 12-case benchmark, returns evaluation report as JSON                   |
+| `POST` | `/report`         | Runs benchmark and returns a PDF evaluation report                                   |
+| `POST` | `/report/compare` | Runs both comparators on your input and returns a hybrid-aware PDF comparison report |
 
 ### Example: `/compare`
 
@@ -121,8 +124,10 @@ curl -X POST http://localhost:8000/compare \
 ```
 
 The response includes:
+
 - `baseline` — rule-based issues
 - `llm` — LLM issues, each with a `confidence` score (0.0–1.0)
+- `hybrid` — merged issues that keep confirmed findings and suppress noise
 - `agreement` — whether both methods found the same issue types, plus `agreed_issue_types`, `only_in_baseline`, `only_in_llm`
 
 ### Example: `/report/compare`
@@ -144,16 +149,18 @@ Runs both comparators across all 12 benchmark cases and prints a metrics summary
 ## Generating the PDF Report
 
 **Benchmark report** (all 12 test cases):
+
 ```bash
 python -m scripts.generate_report
 ```
 
 **Single input report** (custom transcript + summary):
+
 ```bash
 python -m scripts.generate_single_report
 ```
 
-Both PDFs are saved to `reports/`.
+Both PDFs are saved to `reports/`. The single-input report uses the hybrid result as the main comparison view when the merged output is available.
 
 ---
 
@@ -162,12 +169,14 @@ Both PDFs are saved to `reports/`.
 InfoGuard uses two comparison approaches:
 
 ### 1. Rule-Based Baseline
+
 Extracts facts (numbers, dates, identifiers, dollar amounts, IPs, emails) from both texts using regex patterns, then checks for missing, extra, and conflicting values. Facts from the same sentence are grouped into a single issue to reduce noise. Fast (~1ms), deterministic, no API needed.
 
 ### 2. LLM Comparator (Groq)
+
 Sends the transcript and summary to `llama-3.3-70b-versatile` with a structured prompt. The model reasons about mismatches and returns a JSON array of issues, each with a **confidence score** (0.0–1.0). More accurate on nuanced and meaning-level differences (~300–800ms per case). Responses are cached to disk so identical inputs never hit the API twice.
 
-Both comparators return the same `ComparatorResult` schema so they can be scored and compared uniformly. The `/compare` endpoint also returns an **agreement summary** showing whether both methods found the same issue types.
+Both comparators return the same `ComparatorResult` schema so they can be scored and compared uniformly. The `/compare` endpoint also returns a **hybrid** result and an **agreement summary** showing whether both methods found the same issue types.
 
 ---
 
@@ -175,14 +184,14 @@ Both comparators return the same `ComparatorResult` schema so they can be scored
 
 The synthetic benchmark contains **12 cases across 6 categories**:
 
-| Category | Cases | What it tests |
-|---|---|---|
-| Perfect Match | 2 | Summary fully agrees with transcript |
-| Missing Fields | 2 | Summary omits key facts |
-| Incorrect Values | 2 | Summary states wrong facts |
-| Ambiguous | 2 | Vague transcript, hard to verify |
-| Sensitive | 2 | PII handling and appropriate redaction |
-| Extra | 2 | Summary hallucinates facts |
+| Category         | Cases | What it tests                          |
+| ---------------- | ----- | -------------------------------------- |
+| Perfect Match    | 2     | Summary fully agrees with transcript   |
+| Missing Fields   | 2     | Summary omits key facts                |
+| Incorrect Values | 2     | Summary states wrong facts             |
+| Ambiguous        | 2     | Vague transcript, hard to verify       |
+| Sensitive        | 2     | PII handling and appropriate redaction |
+| Extra            | 2     | Summary hallucinates facts             |
 
 Benchmark cases are in `data/benchmark/cases.json`. Each case has a transcript, summary, and ground truth label.
 
@@ -190,13 +199,13 @@ Benchmark cases are in `data/benchmark/cases.json`. Each case has a transcript, 
 
 ## Evaluation Metrics
 
-| Metric | Definition |
-|---|---|
-| Accuracy | Percentage of cases where the method correctly identified whether issues exist |
-| Precision | Of all issues flagged, how many were actually real |
-| Recall | Of all real issues, how many were caught |
-| F1 Score | Combined score balancing precision and recall |
-| Latency | Average time per comparison |
+| Metric    | Definition                                                                     |
+| --------- | ------------------------------------------------------------------------------ |
+| Accuracy  | Percentage of cases where the method correctly identified whether issues exist |
+| Precision | Of all issues flagged, how many were actually real                             |
+| Recall    | Of all real issues, how many were caught                                       |
+| F1 Score  | Combined score balancing precision and recall                                  |
+| Latency   | Average time per comparison                                                    |
 
 ---
 

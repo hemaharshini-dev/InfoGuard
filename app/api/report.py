@@ -32,6 +32,7 @@ def generate_single_report(input: ComparisonInput) -> FileResponse:
         summary=input.summary,
         baseline_result=results["baseline"],
         llm_result=results["llm"],
+        hybrid_result=results["hybrid"],
     )
     render_pdf(data, _SINGLE_REPORT)
     return FileResponse(

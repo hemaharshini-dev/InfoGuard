@@ -5,7 +5,7 @@ from app.reporting.pdf import render_pdf
 from app.evaluation.scorer import score
 from app.evaluation.benchmark import load_benchmark
 from app.comparators.baseline import BaselineComparator
-from app.schemas.models import ComparisonInput
+from app.schemas.models import ComparisonInput, ComparatorName, ComparatorResult, Issue, IssueType
 
 
 def _make_report():
@@ -20,9 +20,22 @@ def _make_single_data():
         transcript="The refund of $75 was issued on March 5th to card ending 4821.",
         summary="A refund of $50 was issued.",
     )
-    baseline = BaselineComparator()
-    result = baseline.compare(inp)
-    return build_single_report_data(inp.transcript, inp.summary, result, result)
+    baseline_result = ComparatorResult(
+        comparator=ComparatorName.BASELINE,
+        issues=[Issue(issue_type=IssueType.INCORRECT, description="Wrong refund amount")],
+        latency_seconds=0.01,
+    )
+    llm_result = ComparatorResult(
+        comparator=ComparatorName.LLM,
+        issues=[Issue(issue_type=IssueType.INCORRECT, description="Wrong refund amount", confidence=0.92)],
+        latency_seconds=0.3,
+    )
+    hybrid_result = ComparatorResult(
+        comparator=ComparatorName.HYBRID,
+        issues=[Issue(issue_type=IssueType.INCORRECT, description="Wrong refund amount", confidence=0.96)],
+        latency_seconds=0.31,
+    )
+    return build_single_report_data(inp.transcript, inp.summary, baseline_result, llm_result, hybrid_result)
 
 
 # --- benchmark builder ---
