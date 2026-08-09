@@ -1,3 +1,9 @@
+"""Rule-based baseline comparator using regex fact extraction.
+
+Fast (~1ms), deterministic, and requires no external API.
+Extracts facts (numbers, dates, identifiers, dollar amounts, IPs, emails)
+from both texts and diffs them to find missing, extra, and incorrect values.
+"""
 import time
 from app.comparators.base import BaseComparator
 from app.schemas.models import (
@@ -16,6 +22,8 @@ _FACT_COVERAGE_THRESHOLD = 0.0  # exact substring match after normalization
 
 
 class BaselineComparator(BaseComparator):
+    """Deterministic comparator that diffs extracted facts between transcript and summary."""
+
     def compare(self, input: ComparisonInput) -> ComparatorResult:
         start = time.perf_counter()
         issues: list[Issue] = []

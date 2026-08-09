@@ -1,11 +1,14 @@
+"""Text normalisation and fact-extraction utilities used by both comparators."""
 import re
 
 
 def normalize(text: str) -> str:
+    """Lowercase and collapse whitespace for consistent comparisons."""
     return re.sub(r"\s+", " ", text.strip().lower())
 
 
 def split_sentences(text: str) -> list[str]:
+    """Split text into sentences on sentence-ending punctuation."""
     parts = re.split(r"(?<=[.!?])\s+", text.strip())
     return [p.strip() for p in parts if p.strip()]
 

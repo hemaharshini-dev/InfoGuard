@@ -1,3 +1,8 @@
+"""Scores comparator predictions against benchmark ground truth labels.
+
+Computes accuracy, per-issue-type precision/recall/F1, category accuracy,
+and average latency for each comparator.
+"""
 from collections import defaultdict
 from app.schemas.models import (
     BenchmarkCategory,
@@ -13,6 +18,7 @@ from app.schemas.models import (
 
 
 def _precision_recall_f1(tp: int, fp: int, fn: int) -> tuple[float, float, float]:
+    """Compute precision, recall, and F1 from raw counts."""
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
@@ -31,6 +37,7 @@ def score(
     baseline_results: list[ComparatorResult],
     llm_results: list[ComparatorResult],
 ) -> EvaluationReport:
+    """Combine per-case results and compute metrics for both comparators."""
     case_results: list[CaseResult] = []
 
     for item, b_res, l_res in zip(items, baseline_results, llm_results):
@@ -58,6 +65,7 @@ def _compute_metrics(
     items: list[BenchmarkItem],
     results: list[ComparatorResult],
 ) -> ComparatorMetrics:
+    """Compute accuracy, latency, per-issue-type metrics, and category accuracy for one comparator."""
     correct_total = 0
     latencies: list[float] = []
 

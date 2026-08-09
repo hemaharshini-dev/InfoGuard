@@ -1,3 +1,8 @@
+"""Pydantic schemas shared across all layers of InfoGuard.
+
+All comparators return ComparatorResult so the evaluation engine
+can score any comparator without modification.
+"""
 from __future__ import annotations
 
 from enum import Enum
@@ -10,13 +15,15 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 class IssueType(str, Enum):
-    MISSING = "missing"
-    INCORRECT = "incorrect"
-    CONFLICTING = "conflicting"
-    EXTRA = "extra"
+    """The four categories of mismatch InfoGuard can detect."""
+    MISSING = "missing"        # fact in transcript, absent from summary
+    INCORRECT = "incorrect"    # fact stated wrongly in summary
+    CONFLICTING = "conflicting" # information that clashes without resolution
+    EXTRA = "extra"            # summary adds facts not in transcript (hallucination)
 
 
 class BenchmarkCategory(str, Enum):
+    """The six categories used in the synthetic benchmark."""
     PERFECT_MATCH = "perfect_match"
     MISSING_FIELDS = "missing_fields"
     INCORRECT_VALUES = "incorrect_values"
@@ -26,6 +33,7 @@ class BenchmarkCategory(str, Enum):
 
 
 class ComparatorName(str, Enum):
+    """Identifies which comparator produced a result."""
     BASELINE = "baseline"
     LLM = "llm"
 
@@ -35,6 +43,7 @@ class ComparatorName(str, Enum):
 # ---------------------------------------------------------------------------
 
 class ComparisonInput(BaseModel):
+    """A transcript/summary pair submitted for comparison."""
     transcript: str = Field(..., min_length=1)
     summary: str = Field(..., min_length=1)
 
@@ -44,10 +53,11 @@ class ComparisonInput(BaseModel):
 # ---------------------------------------------------------------------------
 
 class Issue(BaseModel):
+    """A single detected mismatch between transcript and summary."""
     issue_type: IssueType
     description: str
-    transcript_excerpt: str | None = None
-    summary_excerpt: str | None = None
+    transcript_excerpt: str | None = None  # relevant snippet from transcript
+    summary_excerpt: str | None = None     # relevant snippet from summary
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +65,7 @@ class Issue(BaseModel):
 # ---------------------------------------------------------------------------
 
 class ComparatorResult(BaseModel):
+    """Uniform output returned by every comparator implementation."""
     comparator: ComparatorName
     issues: list[Issue] = Field(default_factory=list)
     latency_seconds: float = 0.0
@@ -66,11 +77,13 @@ class ComparatorResult(BaseModel):
 # ---------------------------------------------------------------------------
 
 class BenchmarkLabel(BaseModel):
+    """Ground truth for a benchmark case — which issue types should be detected."""
     expected_issue_types: list[IssueType] = Field(default_factory=list)
     notes: str = ""
 
 
 class BenchmarkItem(BaseModel):
+    """One benchmark case: input pair + ground truth label."""
     id: str
     category: BenchmarkCategory
     input: ComparisonInput
@@ -82,6 +95,7 @@ class BenchmarkItem(BaseModel):
 # ---------------------------------------------------------------------------
 
 class IssueTypeMetrics(BaseModel):
+    """Precision, recall, and F1 for a single issue type."""
     issue_type: IssueType
     precision: float
     recall: float
@@ -89,6 +103,7 @@ class IssueTypeMetrics(BaseModel):
 
 
 class ComparatorMetrics(BaseModel):
+    """Aggregated evaluation metrics for one comparator across all benchmark cases."""
     comparator: ComparatorName
     overall_accuracy: float
     avg_latency_seconds: float
@@ -101,6 +116,7 @@ class ComparatorMetrics(BaseModel):
 # ---------------------------------------------------------------------------
 
 class CaseResult(BaseModel):
+    """Both comparators' outputs for a single benchmark case, alongside ground truth."""
     benchmark_id: str
     category: BenchmarkCategory
     baseline_result: ComparatorResult
@@ -109,6 +125,7 @@ class CaseResult(BaseModel):
 
 
 class EvaluationReport(BaseModel):
+    """Full benchmark evaluation report covering all cases and both comparators."""
     total_cases: int
     baseline_metrics: ComparatorMetrics
     llm_metrics: ComparatorMetrics

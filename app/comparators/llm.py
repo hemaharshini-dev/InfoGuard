@@ -1,3 +1,9 @@
+"""LLM comparator using Groq's llama-3.3-70b-versatile model.
+
+Sends the transcript and summary to the Groq API with a structured prompt
+and parses the JSON array response into Issue objects.
+More accurate than the baseline on nuanced, meaning-level differences.
+"""
 import json
 import time
 from groq import Groq
@@ -35,6 +41,8 @@ Identify all factual mismatches between the transcript and the summary."""
 
 
 class LLMComparator(BaseComparator):
+    """Calls the Groq API to detect mismatches using a large language model."""
+
     def __init__(self) -> None:
         self._client = Groq(api_key=settings.groq_api_key)
 
@@ -68,6 +76,7 @@ class LLMComparator(BaseComparator):
         )
 
     def _parse(self, raw: str) -> list[Issue]:
+        """Parse the LLM's JSON response into Issue objects, stripping markdown fences if present."""
         try:
             # Strip markdown code fences if model wraps output
             text = raw.strip()

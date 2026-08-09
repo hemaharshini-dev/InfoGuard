@@ -1,3 +1,4 @@
+"""Pipeline service — orchestrates both comparators for benchmark and single-input runs."""
 from app.comparators.baseline import BaselineComparator
 from app.comparators.llm import LLMComparator
 from app.evaluation.benchmark import load_benchmark
@@ -6,6 +7,7 @@ from app.schemas.models import ComparisonInput, ComparatorResult, EvaluationRepo
 
 
 def run_benchmark() -> EvaluationReport:
+    """Run both comparators over all benchmark cases and return a scored EvaluationReport."""
     items = load_benchmark()
     baseline = BaselineComparator()
     llm = LLMComparator()
@@ -21,6 +23,7 @@ def run_benchmark() -> EvaluationReport:
 
 
 def run_single(transcript: str, summary: str) -> dict:
+    """Run both comparators on a single transcript/summary pair and return their results."""
     input_ = ComparisonInput(transcript=transcript, summary=summary)
     baseline = BaselineComparator()
     llm = LLMComparator()

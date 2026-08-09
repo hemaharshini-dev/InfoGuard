@@ -1,3 +1,4 @@
+"""FastAPI application entrypoint — registers all route handlers."""
 from fastapi import FastAPI
 from app.api import health, evaluate, benchmark, report
 

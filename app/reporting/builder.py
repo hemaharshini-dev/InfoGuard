@@ -1,8 +1,10 @@
+"""Transforms EvaluationReport and single-run results into plain dicts for the PDF renderer."""
 from datetime import datetime
 from app.schemas.models import ComparatorResult, EvaluationReport
 
 
 def build_report_data(report: EvaluationReport) -> dict:
+    """Flatten an EvaluationReport into a serialisable dict for the benchmark PDF renderer."""
     b = report.baseline_metrics
     l = report.llm_metrics
 
@@ -58,6 +60,7 @@ def build_single_report_data(
     baseline_result: ComparatorResult,
     llm_result: ComparatorResult,
 ) -> dict:
+    """Build a serialisable dict for the single-input PDF renderer."""
     b_issues = [{"type": i.issue_type.value, "description": i.description,
                  "transcript_excerpt": i.transcript_excerpt, "summary_excerpt": i.summary_excerpt}
                 for i in baseline_result.issues]
