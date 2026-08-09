@@ -1,10 +1,10 @@
 from pathlib import Path
-from app.services.pipeline import run_benchmark
+from app.services.pipeline import run_benchmark_sync
 from app.reporting.builder import build_report_data
 from app.reporting.pdf import render_pdf
 
 print("Running benchmark...")
-report = run_benchmark()
+report = run_benchmark_sync()
 
 print("Building report data...")
 data = build_report_data(report)

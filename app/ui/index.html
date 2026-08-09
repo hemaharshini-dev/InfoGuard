@@ -124,9 +124,27 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 0.25rem;
       opacity: 0.75;
     }
+    .issue-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .issue-desc { margin-bottom: 0.4rem; }
+    .conf-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+    }
+    .conf-high { background: #e8f5e9; color: #2e7d32; }
+    .conf-mid  { background: #fff8e1; color: #f57f17; }
+    .conf-low  { background: #fce4ec; color: #c62828; }
+    .excerpts { margin-top: 0.4rem; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 0.4rem; }
+    .excerpt { font-size: 0.78rem; color: #666; margin-bottom: 0.2rem; }
+    .exc-label { font-weight: 700; color: #444; }
     .no-issues { font-size: 0.86rem; color: #aaa; font-style: italic; }
 
     .meta-row {
@@ -149,6 +167,15 @@
       font-size: 0.86rem;
       margin-top: 0.75rem;
     }
+    .agreement-box {
+      border-radius: 6px;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.82rem;
+      margin-top: 0.75rem;
+    }
+    .agreement-yes { background: #e8f5e9; color: #2e7d32; }
+    .agreement-no  { background: #fff3e0; color: #e65100; }
+    .agreement-box b { font-weight: 700; }
   </style>
 </head>
 <body>
@@ -200,6 +227,7 @@
       <span>Baseline latency: <b id="baseline-latency">—</b></span>
       <span>LLM latency: <b id="llm-latency">—</b></span>
     </div>
+    <div id="agreement-box"></div>
   </div>
 </main>
 
@@ -222,11 +250,25 @@
       el.innerHTML = '<p class="no-issues">No issues detected.</p>';
       return;
     }
-    el.innerHTML = issues.map(i => `
-      <div class="issue-card issue-${i.issue_type}">
-        <div class="issue-type">${i.issue_type}</div>
-        <div>${i.description}</div>
-      </div>`).join("");
+    el.innerHTML = issues.map(i => {
+      const confBadge = i.confidence != null
+        ? `<span class="conf-badge conf-${i.confidence >= 0.8 ? 'high' : i.confidence >= 0.5 ? 'mid' : 'low'}">${Math.round(i.confidence * 100)}% confidence</span>`
+        : '';
+      const excerpts = (i.transcript_excerpt || i.summary_excerpt) ? `
+        <div class="excerpts">
+          ${i.transcript_excerpt ? `<div class="excerpt"><span class="exc-label">Transcript:</span> ${i.transcript_excerpt}</div>` : ''}
+          ${i.summary_excerpt    ? `<div class="excerpt"><span class="exc-label">Summary:</span> ${i.summary_excerpt}</div>` : ''}
+        </div>` : '';
+      return `
+        <div class="issue-card issue-${i.issue_type}">
+          <div class="issue-header">
+            <span class="issue-type">${i.issue_type}</span>
+            ${confBadge}
+          </div>
+          <div class="issue-desc">${i.description}</div>
+          ${excerpts}
+        </div>`;
+    }).join("");
   }
 
   function setLoading(on) {
@@ -287,6 +329,21 @@
         `${(data.baseline.latency_seconds * 1000).toFixed(1)} ms`;
       document.getElementById("llm-latency").textContent =
         `${(data.llm.latency_seconds * 1000).toFixed(0)} ms`;
+
+      // Agreement summary
+      const ag = data.agreement;
+      const agBox = document.getElementById("agreement-box");
+      if (ag.methods_agree) {
+        agBox.className = "agreement-box agreement-yes";
+        agBox.innerHTML = `<b>Both methods agree</b> — issue types detected: ${ag.agreed_issue_types.length ? ag.agreed_issue_types.join(", ") : "none"}.`;
+      } else {
+        const parts = [];
+        if (ag.agreed_issue_types.length) parts.push(`both found: <b>${ag.agreed_issue_types.join(", ")}</b>`);
+        if (ag.only_in_baseline.length)   parts.push(`baseline only: <b>${ag.only_in_baseline.join(", ")}</b>`);
+        if (ag.only_in_llm.length)        parts.push(`AI only: <b>${ag.only_in_llm.join(", ")}</b>`);
+        agBox.className = "agreement-box agreement-no";
+        agBox.innerHTML = `<b>Methods diverge</b> — ${parts.join(" · ")}.`;
+      }
 
       document.getElementById("results").style.display = "block";
     } catch {

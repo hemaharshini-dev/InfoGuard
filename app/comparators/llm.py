@@ -40,6 +40,7 @@ Respond ONLY with a valid JSON array. Each element must have exactly these field
 - "description": a concise explanation of the issue
 - "transcript_excerpt": the relevant excerpt from the transcript (or null)
 - "summary_excerpt": the relevant excerpt from the summary (or null)
+- "confidence": a float between 0.0 and 1.0 indicating how confident you are this is a real issue
 
 If there are no issues, respond with an empty array: []
 
@@ -120,11 +121,14 @@ class LLMComparator(BaseComparator):
         issues: list[Issue] = []
         for item in data:
             try:
+                raw_conf = item.get("confidence")
+                confidence = float(raw_conf) if raw_conf is not None else None
                 issues.append(Issue(
                     issue_type=IssueType(item["issue_type"]),
                     description=item.get("description", ""),
                     transcript_excerpt=item.get("transcript_excerpt"),
                     summary_excerpt=item.get("summary_excerpt"),
+                    confidence=confidence,
                 ))
             except (KeyError, ValueError):
                 continue

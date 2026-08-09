@@ -1,7 +1,7 @@
-from app.services.pipeline import run_benchmark
+from app.services.pipeline import run_benchmark_sync
 
 print("Running full benchmark (baseline + LLM)...\n")
-report = run_benchmark()
+report = run_benchmark_sync()
 
 for metrics in [report.baseline_metrics, report.llm_metrics]:
     print(f"=== {metrics.comparator.value.upper()} ===")

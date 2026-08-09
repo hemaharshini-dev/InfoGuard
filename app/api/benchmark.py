@@ -5,6 +5,6 @@ router = APIRouter()
 
 
 @router.post("/benchmark")
-def benchmark() -> dict:
-    report = run_benchmark()
+async def benchmark() -> dict:
+    report = await run_benchmark()
     return report.model_dump()

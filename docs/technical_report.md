@@ -54,7 +54,7 @@ The baseline extracts facts from both texts using regex patterns covering number
 
 **Advantages:** Free, runs locally, fully deterministic, ~1ms per case, no API dependency.
 
-**Limitations:** Cannot understand meaning or paraphrasing. Flags individual tokens separately (e.g. "3" and "5" as separate issues), producing noise. Cannot detect semantic equivalence.
+**Limitations:** Cannot understand meaning or paraphrasing. Cannot detect semantic equivalence (e.g. "$75" vs "seventy-five dollars").
 
 ### Approach 2 — LLM Comparator (Groq)
 
@@ -105,6 +105,8 @@ Both comparators achieved **100% accuracy** on the benchmark — meaning in ever
 - The baseline has lower precision on `missing` (0.38) because it flags individual tokens separately
 - The LLM is ~420x slower per case
 
+> Note: baseline precision on `missing` has since improved due to sentence-level fact grouping (Enhancement 2). The figures above reflect the original implementation.
+
 ---
 
 ## 7. Strengths, Limitations, and Next Steps
@@ -114,6 +116,11 @@ Both comparators achieved **100% accuracy** on the benchmark — meaning in ever
 - Uniform schema means any new comparator can be added without touching the evaluator
 - Both approaches are well-contrasted — they differ in speed, cost, and behaviour
 - PDF reports are human-readable with plain-English explanations
+- Built-in web UI served directly by FastAPI — no separate frontend server needed
+- LLM responses cached to disk — identical inputs never hit the API twice
+- Benchmark runs all 12 cases concurrently — cold run completes in ~1s
+- Per-issue confidence scores from the LLM help users prioritise which flags to act on
+- Agreement summary on `/compare` shows at a glance whether both methods concur
 
 ### Limitations
 - Benchmark is small (12 cases) and synthetic

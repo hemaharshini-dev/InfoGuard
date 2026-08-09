@@ -82,7 +82,20 @@ Get a free Groq API key at [console.groq.com](https://console.groq.com).
 uvicorn app.main:app --reload                      # macOS / Linux
 ```
 
-Open `http://localhost:8000/docs` for the interactive Swagger UI.
+Open `http://localhost:8000` for the interactive UI, or `http://localhost:8000/docs` for the Swagger API explorer.
+
+---
+
+## Web UI
+
+InfoGuard includes a built-in web interface served at `http://localhost:8000`.
+
+- Paste a transcript and summary side-by-side
+- Click **Analyse** — results appear instantly with colour-coded issue cards
+- Each LLM issue shows a **confidence badge** (green ≥80%, amber ≥50%, red <50%)
+- Transcript and summary excerpts are shown below each issue so you can see exactly where the problem is
+- An **agreement banner** shows whether both methods found the same issue types or diverged
+- Click **Download PDF Report** to get a full PDF of the comparison
 
 ---
 
@@ -106,6 +119,11 @@ curl -X POST http://localhost:8000/compare \
     "summary": "Agent confirmed a refund within 3 business days."
   }'
 ```
+
+The response includes:
+- `baseline` — rule-based issues
+- `llm` — LLM issues, each with a `confidence` score (0.0–1.0)
+- `agreement` — whether both methods found the same issue types, plus `agreed_issue_types`, `only_in_baseline`, `only_in_llm`
 
 ### Example: `/report/compare`
 
@@ -144,12 +162,12 @@ Both PDFs are saved to `reports/`.
 InfoGuard uses two comparison approaches:
 
 ### 1. Rule-Based Baseline
-Extracts facts (numbers, dates, identifiers, dollar amounts, IPs, emails) from both texts using regex patterns, then checks for missing, extra, and conflicting values. Fast (~1ms), deterministic, no API needed.
+Extracts facts (numbers, dates, identifiers, dollar amounts, IPs, emails) from both texts using regex patterns, then checks for missing, extra, and conflicting values. Facts from the same sentence are grouped into a single issue to reduce noise. Fast (~1ms), deterministic, no API needed.
 
 ### 2. LLM Comparator (Groq)
-Sends the transcript and summary to `llama-3.3-70b-versatile` with a structured prompt. The model reasons about mismatches and returns a JSON array of issues. More accurate on nuanced and meaning-level differences (~300–800ms per case).
+Sends the transcript and summary to `llama-3.3-70b-versatile` with a structured prompt. The model reasons about mismatches and returns a JSON array of issues, each with a **confidence score** (0.0–1.0). More accurate on nuanced and meaning-level differences (~300–800ms per case). Responses are cached to disk so identical inputs never hit the API twice.
 
-Both comparators return the same `ComparatorResult` schema so they can be scored and compared uniformly.
+Both comparators return the same `ComparatorResult` schema so they can be scored and compared uniformly. The `/compare` endpoint also returns an **agreement summary** showing whether both methods found the same issue types.
 
 ---
 
@@ -193,17 +211,20 @@ InfoGuard/
 │   ├── evaluation/     # Benchmark loader and scorer
 │   ├── reporting/      # PDF builder and renderer
 │   ├── schemas/        # Pydantic models
-│   ├── services/       # Pipeline orchestration
+│   ├── services/       # Pipeline orchestration (async benchmark)
+│   ├── ui/             # Built-in web UI (index.html)
 │   ├── utils/          # Text normalization helpers
 │   └── main.py         # FastAPI app entrypoint
 ├── data/
-│   └── benchmark/      # Synthetic benchmark cases (cases.json)
+│   ├── benchmark/      # Synthetic benchmark cases (cases.json)
+│   └── cache/          # LLM response cache (auto-generated, git-ignored)
 ├── docs/               # Technical report and design docs
 ├── reports/            # Generated PDF reports
 ├── scripts/            # CLI scripts for running benchmark and reports
 ├── tests/              # Unit and API tests
 ├── .env.example        # Environment variable template
 ├── pyproject.toml      # Dependencies and project metadata
+├── REPORT.md           # Technical report (submission deliverable)
 └── README.md
 ```
 
@@ -224,11 +245,10 @@ python -m pytest tests/ -v
 - Benchmark is synthetic and small (12 cases). Real-world transcripts may be more complex.
 - The baseline cannot handle semantic equivalence (e.g. "$75" vs "seventy-five dollars").
 - The LLM comparator is subject to Groq rate limits and model updates.
-- The free Groq tier has a daily token limit — running the full benchmark repeatedly may hit it.
+- The free Groq tier has a daily token limit — the disk cache prevents repeated calls on the same inputs.
 
 ## Future Improvements
 
 - Larger and more diverse benchmark
 - Semantic similarity scoring for the baseline
-- Response caching for LLM comparisons
-- Support for additional LLM providers
+- Support for additional LLM providers (OpenAI, Gemini)

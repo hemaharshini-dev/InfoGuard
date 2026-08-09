@@ -58,6 +58,7 @@ class Issue(BaseModel):
     description: str
     transcript_excerpt: str | None = None  # relevant snippet from transcript
     summary_excerpt: str | None = None     # relevant snippet from summary
+    confidence: float | None = None        # 0.0–1.0, LLM-provided; None for baseline
 
 
 # ---------------------------------------------------------------------------

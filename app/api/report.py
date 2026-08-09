@@ -13,8 +13,8 @@ _SINGLE_REPORT    = Path("reports") / "comparison_report.pdf"
 
 
 @router.post("/report")
-def generate_benchmark_report() -> FileResponse:
-    report = run_benchmark()
+async def generate_benchmark_report() -> FileResponse:
+    report = await run_benchmark()
     data = build_report_data(report)
     render_pdf(data, _BENCHMARK_REPORT)
     return FileResponse(

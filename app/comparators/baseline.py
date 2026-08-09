@@ -3,6 +3,10 @@
 Fast (~1ms), deterministic, and requires no external API.
 Extracts facts (numbers, dates, identifiers, dollar amounts, IPs, emails)
 from both texts and diffs them to find missing, extra, and incorrect values.
+
+Enhancement: missing and extra facts are grouped by source sentence so that
+multiple tokens from the same sentence produce one issue, not one per token.
+This significantly reduces false-positive noise and improves precision.
 """
 import time
 from app.comparators.base import BaseComparator
@@ -22,37 +26,57 @@ _FACT_COVERAGE_THRESHOLD = 0.0  # exact substring match after normalization
 
 
 class BaselineComparator(BaseComparator):
-    """Deterministic comparator that diffs extracted facts between transcript and summary."""
+    """Deterministic comparator that diffs extracted facts between transcript and summary.
+
+    Missing and extra facts are grouped by the sentence they originate from,
+    so one sentence with three differing facts produces one issue, not three.
+    """
 
     def compare(self, input: ComparisonInput) -> ComparatorResult:
         start = time.perf_counter()
         issues: list[Issue] = []
 
-        transcript_norm = normalize(input.transcript)
-        summary_norm = normalize(input.summary)
-
         transcript_facts = extract_facts(input.transcript)
         summary_facts = extract_facts(input.summary)
 
-        # --- Missing facts: in transcript but not in summary ---
+        # --- Missing facts: group by sentence to avoid one issue per token ---
         missing = transcript_facts - summary_facts
-        for fact in missing:
-            issues.append(Issue(
-                issue_type=IssueType.MISSING,
-                description=f"Fact '{fact}' found in transcript but absent from summary.",
-                transcript_excerpt=fact,
-                summary_excerpt=None,
-            ))
+        if missing:
+            # Find which transcript sentence each missing fact came from
+            t_sentences = split_sentences(input.transcript)
+            sentence_facts: dict[str, set[str]] = {}
+            for fact in missing:
+                source = next(
+                    (s for s in t_sentences if fact in normalize(s)),
+                    input.transcript[:200],
+                )
+                sentence_facts.setdefault(source, set()).add(fact)
+            for source_sent, facts in sentence_facts.items():
+                issues.append(Issue(
+                    issue_type=IssueType.MISSING,
+                    description=f"Facts {sorted(facts)} found in transcript but absent from summary.",
+                    transcript_excerpt=source_sent[:200],
+                    summary_excerpt=None,
+                ))
 
-        # --- Extra facts: in summary but not in transcript ---
+        # --- Extra facts: group by sentence similarly ---
         extra = summary_facts - transcript_facts
-        for fact in extra:
-            issues.append(Issue(
-                issue_type=IssueType.EXTRA,
-                description=f"Fact '{fact}' appears in summary but has no basis in transcript.",
-                transcript_excerpt=None,
-                summary_excerpt=fact,
-            ))
+        if extra:
+            s_sentences = split_sentences(input.summary)
+            sentence_facts_extra: dict[str, set[str]] = {}
+            for fact in extra:
+                source = next(
+                    (s for s in s_sentences if fact in normalize(s)),
+                    input.summary[:200],
+                )
+                sentence_facts_extra.setdefault(source, set()).add(fact)
+            for source_sent, facts in sentence_facts_extra.items():
+                issues.append(Issue(
+                    issue_type=IssueType.EXTRA,
+                    description=f"Facts {sorted(facts)} appear in summary but have no basis in transcript.",
+                    transcript_excerpt=None,
+                    summary_excerpt=source_sent[:200],
+                ))
 
         # --- Incorrect / conflicting: sentence-level mismatch detection ---
         transcript_sentences = split_sentences(input.transcript)
@@ -74,7 +98,7 @@ class BaselineComparator(BaseComparator):
 
             t_norm = normalize(best_t_sent)
 
-            # Extract facts from this sentence pair and check for value conflicts
+            # Extract facts from this sentence pair
             s_facts = extract_facts(s_sent)
             t_facts = extract_facts(best_t_sent)
 
