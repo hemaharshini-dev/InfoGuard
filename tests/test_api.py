@@ -1,6 +1,8 @@
 import pytest
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
+from app.schemas.models import ComparatorResult, ComparatorName, Issue, IssueType
 
 client = TestClient(app)
 
@@ -20,6 +22,18 @@ _SUMMARY_WRONG = (
 )
 
 
+def _mock_llm_result(issues=None):
+    return ComparatorResult(
+        comparator=ComparatorName.LLM,
+        issues=issues or [],
+        latency_seconds=0.3,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
+
 def test_health_returns_ok():
     r = client.get("/health")
     assert r.status_code == 200
@@ -31,7 +45,13 @@ def test_health_includes_model():
     assert "model" in r.json()
 
 
-def test_compare_returns_baseline_and_llm():
+# ---------------------------------------------------------------------------
+# /compare — mock LLM, baseline runs real
+# ---------------------------------------------------------------------------
+
+@patch("app.comparators.llm.LLMComparator.compare")
+def test_compare_returns_baseline_and_llm(mock_compare):
+    mock_compare.return_value = _mock_llm_result()
     r = client.post("/compare", json={"transcript": _TRANSCRIPT, "summary": _SUMMARY_CORRECT})
     assert r.status_code == 200
     body = r.json()
@@ -39,7 +59,9 @@ def test_compare_returns_baseline_and_llm():
     assert "llm" in body
 
 
-def test_compare_baseline_has_issues_schema():
+@patch("app.comparators.llm.LLMComparator.compare")
+def test_compare_baseline_has_issues_schema(mock_compare):
+    mock_compare.return_value = _mock_llm_result()
     r = client.post("/compare", json={"transcript": _TRANSCRIPT, "summary": _SUMMARY_CORRECT})
     baseline = r.json()["baseline"]
     assert "issues" in baseline
@@ -47,7 +69,11 @@ def test_compare_baseline_has_issues_schema():
     assert "comparator" in baseline
 
 
-def test_compare_detects_incorrect_on_wrong_summary():
+@patch("app.comparators.llm.LLMComparator.compare")
+def test_compare_detects_incorrect_on_wrong_summary(mock_compare):
+    mock_compare.return_value = _mock_llm_result(
+        issues=[Issue(issue_type=IssueType.INCORRECT, description="Wrong refund amount")]
+    )
     r = client.post("/compare", json={"transcript": _TRANSCRIPT, "summary": _SUMMARY_WRONG})
     assert r.status_code == 200
     baseline_types = [i["issue_type"] for i in r.json()["baseline"]["issues"]]
@@ -65,7 +91,13 @@ def test_compare_rejects_empty_summary():
     assert r.status_code == 422
 
 
-def test_benchmark_returns_report_structure():
+# ---------------------------------------------------------------------------
+# /benchmark, /report, /report/compare — mock LLM to avoid rate limits
+# ---------------------------------------------------------------------------
+
+@patch("app.comparators.llm.LLMComparator.compare")
+def test_benchmark_returns_report_structure(mock_compare):
+    mock_compare.return_value = _mock_llm_result()
     r = client.post("/benchmark")
     assert r.status_code == 200
     body = r.json()
@@ -75,13 +107,28 @@ def test_benchmark_returns_report_structure():
     assert "case_results" in body
 
 
-def test_benchmark_total_cases_is_12():
+@patch("app.comparators.llm.LLMComparator.compare")
+def test_benchmark_total_cases_is_12(mock_compare):
+    mock_compare.return_value = _mock_llm_result()
     r = client.post("/benchmark")
     assert r.json()["total_cases"] == 12
 
 
-def test_report_returns_pdf():
+@patch("app.comparators.llm.LLMComparator.compare")
+def test_report_returns_pdf(mock_compare):
+    mock_compare.return_value = _mock_llm_result()
     r = client.post("/report")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/pdf"
+    assert r.content[:4] == b"%PDF"
+
+
+@patch("app.comparators.llm.LLMComparator.compare")
+def test_report_compare_returns_pdf(mock_compare):
+    mock_compare.return_value = _mock_llm_result(
+        issues=[Issue(issue_type=IssueType.INCORRECT, description="Test issue")]
+    )
+    r = client.post("/report/compare", json={"transcript": _TRANSCRIPT, "summary": _SUMMARY_CORRECT})
     assert r.status_code == 200
     assert r.headers["content-type"] == "application/pdf"
     assert r.content[:4] == b"%PDF"

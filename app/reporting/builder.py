@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.schemas.models import EvaluationReport
+from app.schemas.models import ComparatorResult, EvaluationReport
 
 
 def build_report_data(report: EvaluationReport) -> dict:
@@ -20,20 +20,21 @@ def build_report_data(report: EvaluationReport) -> dict:
 
     case_rows = []
     for c in report.case_results:
-        b_types = list({i.issue_type.value for i in c.baseline_result.issues})
-        l_types = list({i.issue_type.value for i in c.llm_result.issues})
+        b_issues = [{"type": i.issue_type.value, "description": i.description} for i in c.baseline_result.issues]
+        l_issues = [{"type": i.issue_type.value, "description": i.description} for i in c.llm_result.issues]
         expected = [t.value for t in c.label.expected_issue_types]
         case_rows.append({
             "id": c.benchmark_id,
             "category": c.category.value,
             "expected": expected or ["none"],
-            "baseline": b_types or ["none"],
-            "llm": l_types or ["none"],
+            "baseline_issues": b_issues,
+            "llm_issues": l_issues,
             "baseline_latency": c.baseline_result.latency_seconds,
             "llm_latency": c.llm_result.latency_seconds,
         })
 
     return {
+        "mode": "benchmark",
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "total_cases": report.total_cases,
         "baseline": {
@@ -48,4 +49,37 @@ def build_report_data(report: EvaluationReport) -> dict:
         },
         "comparison_table": comparison_table,
         "case_rows": case_rows,
+    }
+
+
+def build_single_report_data(
+    transcript: str,
+    summary: str,
+    baseline_result: ComparatorResult,
+    llm_result: ComparatorResult,
+) -> dict:
+    b_issues = [{"type": i.issue_type.value, "description": i.description,
+                 "transcript_excerpt": i.transcript_excerpt, "summary_excerpt": i.summary_excerpt}
+                for i in baseline_result.issues]
+    l_issues = [{"type": i.issue_type.value, "description": i.description,
+                 "transcript_excerpt": i.transcript_excerpt, "summary_excerpt": i.summary_excerpt}
+                for i in llm_result.issues]
+
+    all_types = {i["type"] for i in b_issues + l_issues}
+    verdict = "No issues found. The summary accurately reflects the transcript." if not all_types else (
+        f"Found {len(l_issues)} issue(s) in the summary. "
+        "The summary does not fully or accurately represent the transcript."
+    )
+
+    return {
+        "mode": "single",
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "transcript": transcript,
+        "summary": summary,
+        "verdict": verdict,
+        "baseline_issues": b_issues,
+        "llm_issues": l_issues,
+        "baseline_latency": baseline_result.latency_seconds,
+        "llm_latency": llm_result.latency_seconds,
+        "issue_types_found": sorted(all_types) if all_types else [],
     }
