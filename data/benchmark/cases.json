@@ -1,0 +1,146 @@
+[
+  {
+    "id": "pm_001",
+    "category": "perfect_match",
+    "input": {
+      "transcript": "Agent: Thank you for calling. Can I get your name please?\nCustomer: Sure, my name is Alex Johnson.\nAgent: And what seems to be the issue today?\nCustomer: I placed an order on March 5th for a laptop. The order number is 78432. It was supposed to arrive in 3 days but it has been 10 days and I still haven't received it.\nAgent: I'm sorry to hear that. Let me look into order 78432. I can see it was shipped on March 6th via FedEx with tracking number FX998123. It appears there was a delay at the regional hub. I'll escalate this and you should receive it within 2 business days.\nCustomer: Thank you.",
+      "summary": "Customer Alex Johnson called about order 78432 placed on March 5th for a laptop. The order was shipped on March 6th via FedEx (tracking FX998123) but was delayed at the regional hub. Agent escalated the issue and advised delivery within 2 business days."
+    },
+    "label": {
+      "expected_issue_types": [],
+      "notes": "Summary fully and accurately reflects all facts in the transcript."
+    }
+  },
+  {
+    "id": "pm_002",
+    "category": "perfect_match",
+    "input": {
+      "transcript": "Agent: Hello, support line. How can I help?\nCustomer: Hi, I want to cancel my subscription. My account email is user@example.com and my plan is the Pro Monthly at $29 per month.\nAgent: I can process that for you. Your cancellation will take effect at the end of your current billing cycle on April 30th. You will not be charged again after that.\nCustomer: Perfect, thanks.",
+      "summary": "Customer requested cancellation of their Pro Monthly subscription at $29 per month on account user@example.com. Agent confirmed cancellation effective at end of billing cycle on April 30th with no further charges."
+    },
+    "label": {
+      "expected_issue_types": [],
+      "notes": "All facts preserved accurately including email, plan name, price, and cancellation date."
+    }
+  },
+  {
+    "id": "mf_001",
+    "category": "missing_fields",
+    "input": {
+      "transcript": "Agent: Thanks for calling. What can I do for you?\nCustomer: I need to report a billing error. I was charged $150 on March 12th but my plan only costs $75 per month.\nAgent: I see the charge. It looks like you were billed twice due to a system error. I will issue a refund of $75 to your card ending in 4821 within 5 to 7 business days.\nCustomer: Great, thank you.",
+      "summary": "Customer reported a billing error and was charged double. Agent confirmed a system error and said a refund would be issued within 5 to 7 business days."
+    },
+    "label": {
+      "expected_issue_types": ["missing"],
+      "notes": "Summary omits the specific charge amount ($150), the correct plan price ($75), the charge date (March 12th), and the card ending (4821)."
+    }
+  },
+  {
+    "id": "mf_002",
+    "category": "missing_fields",
+    "input": {
+      "transcript": "Agent: Good afternoon. How can I assist?\nCustomer: I want to upgrade my plan from Basic to Enterprise. My account ID is ACC-3391.\nAgent: Sure. The Enterprise plan is $199 per month. The upgrade will be effective immediately and your next billing date is May 1st.\nCustomer: Sounds good.",
+      "summary": "Customer with account ACC-3391 requested an upgrade to the Enterprise plan. Agent confirmed the upgrade would be effective immediately."
+    },
+    "label": {
+      "expected_issue_types": ["missing"],
+      "notes": "Summary omits the Enterprise plan price ($199/month) and the next billing date (May 1st)."
+    }
+  },
+  {
+    "id": "iv_001",
+    "category": "incorrect_values",
+    "input": {
+      "transcript": "Agent: Hello, how can I help you today?\nCustomer: I need to check the status of my return. The return ID is RET-5521 and I dropped it off on February 20th.\nAgent: I can see your return RET-5521. It was received at our warehouse on February 22nd and your refund of $230 has been approved. It will be credited within 3 business days.",
+      "summary": "Customer inquired about return RET-5521 dropped off on February 20th. The return was received at the warehouse on February 23rd and a refund of $230 was approved, to be credited within 3 business days."
+    },
+    "label": {
+      "expected_issue_types": ["incorrect"],
+      "notes": "Summary states warehouse received on February 23rd but transcript says February 22nd."
+    }
+  },
+  {
+    "id": "iv_002",
+    "category": "incorrect_values",
+    "input": {
+      "transcript": "Agent: Support, how can I help?\nCustomer: My internet has been down since yesterday. My account number is 88712 and I'm on the 500 Mbps plan.\nAgent: I can see an outage in your area. Our engineers are working on it and the estimated resolution time is 6 hours from now.\nCustomer: Okay.",
+      "summary": "Customer with account 88712 reported internet outage. They are on the 200 Mbps plan. Agent confirmed an area outage with estimated resolution in 6 hours."
+    },
+    "label": {
+      "expected_issue_types": ["incorrect"],
+      "notes": "Summary states 200 Mbps plan but transcript clearly states 500 Mbps plan."
+    }
+  },
+  {
+    "id": "amb_001",
+    "category": "ambiguous",
+    "input": {
+      "transcript": "Agent: Hi there, what can I do for you?\nCustomer: I think I was overcharged last month. I'm not totally sure of the exact amount but it felt like more than usual.\nAgent: I can review your account. Your last charge was $89. Does that seem higher than expected?\nCustomer: Maybe, I usually pay around $80 or so but I'm not certain.",
+      "summary": "Customer contacted support about a possible overcharge. The last charge was $89. Customer acknowledged it may be slightly higher than their usual amount."
+    },
+    "label": {
+      "expected_issue_types": [],
+      "notes": "Ambiguous case. The customer is uncertain. Summary is a reasonable representation but the vagueness in the transcript makes exact fact-checking difficult."
+    }
+  },
+  {
+    "id": "amb_002",
+    "category": "ambiguous",
+    "input": {
+      "transcript": "Agent: Hello, how can I assist you today?\nCustomer: I called last week about a missing package and someone said it would be resolved. I don't remember who I spoke to or exactly what they promised.\nAgent: I can see a note on your account from a previous interaction. It says the issue was being investigated. I don't have a resolution update yet.\nCustomer: Okay, I'll wait a bit more.",
+      "summary": "Customer followed up on a missing package reported last week. Agent noted the issue was under investigation with no resolution update available."
+    },
+    "label": {
+      "expected_issue_types": [],
+      "notes": "Ambiguous case. Prior promise details are unknown. Summary is consistent with what was said but cannot be fully verified against a prior ground truth."
+    }
+  },
+  {
+    "id": "si_001",
+    "category": "sensitive",
+    "input": {
+      "transcript": "Agent: Can I verify your identity please?\nCustomer: Sure. My name is Jordan Lee, date of birth is July 14 1985, and the last four digits of my SSN are 7823.\nAgent: Thank you, identity verified. I can see your account. Your current balance is $1,240 and your last payment of $300 was made on March 1st.",
+      "summary": "Agent verified customer identity. Account balance is $1,240 and last payment of $300 was made on March 1st."
+    },
+    "label": {
+      "expected_issue_types": ["missing"],
+      "notes": "Sensitive case. Summary correctly omits SSN digits and date of birth, which is appropriate redaction. However it also omits the customer name Jordan Lee. Flagged as missing for the name omission."
+    }
+  },
+  {
+    "id": "si_002",
+    "category": "sensitive",
+    "input": {
+      "transcript": "Agent: Thank you for calling. Can you confirm your email and password hint for verification?\nCustomer: Email is jordan.lee@example.com and the hint is my childhood pet.\nAgent: Verified. Your account shows a recent login from an unrecognized device on April 3rd from IP address 192.168.10.45. We recommend changing your password immediately.\nCustomer: I'll do that now.",
+      "summary": "Customer verified their identity. Agent flagged a suspicious login from an unrecognized device on April 3rd and recommended an immediate password change. The login originated from IP 192.168.10.45."
+    },
+    "label": {
+      "expected_issue_types": [],
+      "notes": "Sensitive case. Summary correctly omits the email and password hint but retains the security-relevant IP and date. This is an acceptable and accurate summary."
+    }
+  },
+  {
+    "id": "ex_001",
+    "category": "extra",
+    "input": {
+      "transcript": "Agent: Hi, what can I help you with?\nCustomer: I want to know if my warranty is still active. My product serial number is SN-20948.\nAgent: Yes, your warranty for product SN-20948 is active until December 31st 2025.",
+      "summary": "Customer asked about warranty for product SN-20948. Agent confirmed the warranty is active until December 31st 2025 and also mentioned that an extended warranty plan is available for purchase at $49 per year."
+    },
+    "label": {
+      "expected_issue_types": ["extra"],
+      "notes": "Summary introduces an extended warranty offer that was never mentioned in the transcript. This is a hallucination."
+    }
+  },
+  {
+    "id": "ex_002",
+    "category": "extra",
+    "input": {
+      "transcript": "Agent: Good morning. How can I help?\nCustomer: I need to update my shipping address. My order number is ORD-6612 and the new address is 45 Maple Street, Boston, MA 02101.\nAgent: Done. I've updated the shipping address for order ORD-6612 to 45 Maple Street, Boston, MA 02101.",
+      "summary": "Customer requested a shipping address update for order ORD-6612 to 45 Maple Street, Boston, MA 02101. Agent confirmed the update was made. Agent also informed the customer that a confirmation email with the new address details and an estimated delivery update would be sent within 24 hours."
+    },
+    "label": {
+      "expected_issue_types": ["extra"],
+      "notes": "Summary fabricates a confirmation email promise that was never mentioned in the transcript. This is a hallucination."
+    }
+  }
+]
