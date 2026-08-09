@@ -119,10 +119,8 @@ Both comparators achieved **100% accuracy** on the benchmark — meaning in ever
 - Benchmark is small (12 cases) and synthetic
 - Baseline cannot handle semantic equivalence
 - LLM comparator is subject to rate limits and model changes
-- No caching — repeated benchmark runs consume API tokens
 
 ### Next Steps
 - Larger and more diverse benchmark
 - Semantic similarity layer for the baseline
-- LLM response caching
 - Support for additional providers (OpenAI, Gemini)

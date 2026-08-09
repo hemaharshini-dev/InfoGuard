@@ -3,9 +3,14 @@
 Sends the transcript and summary to the Groq API with a structured prompt
 and parses the JSON array response into Issue objects.
 More accurate than the baseline on nuanced, meaning-level differences.
+
+Responses are cached to disk (data/cache/) keyed by a SHA-256 hash of the
+(model, transcript, summary) tuple. Identical inputs never hit the API twice.
 """
+import hashlib
 import json
 import time
+from pathlib import Path
 from groq import Groq
 from app.comparators.base import BaseComparator
 from app.core.config import settings
@@ -16,6 +21,15 @@ from app.schemas.models import (
     Issue,
     IssueType,
 )
+
+_CACHE_DIR = Path(__file__).parent.parent.parent / "data" / "cache"
+_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _cache_key(model: str, transcript: str, summary: str) -> str:
+    """SHA-256 hash of model + inputs — used as the cache filename."""
+    payload = f"{model}||{transcript}||{summary}"
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 _SYSTEM_PROMPT = """You are an expert fact-checker comparing a transcript against its summary.
 
@@ -47,6 +61,15 @@ class LLMComparator(BaseComparator):
         self._client = Groq(api_key=settings.groq_api_key)
 
     def compare(self, input: ComparisonInput) -> ComparatorResult:
+        """Return cached result if available, otherwise call the Groq API and cache the response."""
+        key = _cache_key(settings.groq_model, input.transcript, input.summary)
+        cache_file = _CACHE_DIR / f"{key}.json"
+
+        # --- Cache hit: deserialise and return immediately, no API call ---
+        if cache_file.exists():
+            cached = json.loads(cache_file.read_text(encoding="utf-8"))
+            return ComparatorResult.model_validate(cached)
+
         start = time.perf_counter()
 
         user_message = _USER_TEMPLATE.format(
@@ -68,12 +91,15 @@ class LLMComparator(BaseComparator):
 
         issues = self._parse(raw)
 
-        return ComparatorResult(
+        result = ComparatorResult(
             comparator=ComparatorName.LLM,
             issues=issues,
             latency_seconds=round(latency, 4),
             raw_output=raw,
         )
+        # --- Cache miss: persist result so future runs skip the API call ---
+        cache_file.write_text(result.model_dump_json(), encoding="utf-8")
+        return result
 
     def _parse(self, raw: str) -> list[Issue]:
         """Parse the LLM's JSON response into Issue objects, stripping markdown fences if present."""

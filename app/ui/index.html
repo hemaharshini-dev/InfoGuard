@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InfoGuard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6f9;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 1.2rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.5px; }
+    header span { font-size: 0.85rem; opacity: 0.6; }
+    #health-badge {
+      margin-left: auto;
+      font-size: 0.78rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      background: #2d2d4e;
+      color: #aaa;
+    }
+    #health-badge.ok { background: #1a3a2a; color: #4caf82; }
+
+    main { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #1a1a2e; }
+
+    label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; color: #555; }
+    textarea {
+      width: 100%;
+      border: 1px solid #dde1ea;
+      border-radius: 6px;
+      padding: 0.65rem 0.8rem;
+      font-size: 0.88rem;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.15s;
+    }
+    textarea:focus { outline: none; border-color: #4f6ef7; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+    button {
+      padding: 0.55rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary   { background: #4f6ef7; color: #fff; }
+    .btn-secondary { background: #eef0f8; color: #1a1a2e; }
+    .btn-pdf       { background: #e8f5e9; color: #2e7d32; }
+
+    .spinner {
+      display: none;
+      width: 20px; height: 20px;
+      border: 2px solid #ddd;
+      border-top-color: #4f6ef7;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 1rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #results { display: none; }
+
+    .verdict-box {
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      font-size: 0.92rem;
+      margin-bottom: 1.2rem;
+    }
+    .verdict-clean  { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+    .verdict-issues { background: #fff3e0; color: #e65100; border-left: 4px solid #ff9800; }
+
+    .comparator-section { margin-bottom: 1.2rem; }
+    .comparator-section h3 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #888;
+      margin-bottom: 0.6rem;
+    }
+
+    .issue-card {
+      border-radius: 6px;
+      padding: 0.7rem 0.9rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.86rem;
+      border-left: 3px solid;
+    }
+    .issue-missing     { background: #fff8e1; border-color: #ffc107; }
+    .issue-incorrect   { background: #fce4ec; border-color: #e91e63; }
+    .issue-extra       { background: #e3f2fd; border-color: #2196f3; }
+    .issue-conflicting { background: #f3e5f5; border-color: #9c27b0; }
+
+    .issue-type {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+      opacity: 0.75;
+    }
+    .no-issues { font-size: 0.86rem; color: #aaa; font-style: italic; }
+
+    .meta-row {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #f0f0f0;
+    }
+    .meta-row b { color: #555; }
+
+    #error-box {
+      display: none;
+      background: #fdecea;
+      color: #c62828;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      font-size: 0.86rem;
+      margin-top: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>InfoGuard</h1>
+  <span>Transcript vs Summary Evaluator</span>
+  <div id="health-badge">checking...</div>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Compare Transcript &amp; Summary</h2>
+    <div class="row">
+      <div>
+        <label for="transcript">Transcript (source of truth)</label>
+        <textarea id="transcript" rows="9" placeholder="Paste the full transcript here..."></textarea>
+      </div>
+      <div>
+        <label for="summary">Summary (to verify)</label>
+        <textarea id="summary" rows="9" placeholder="Paste the summary here..."></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary"   id="btn-compare">Analyse</button>
+      <button class="btn-pdf"       id="btn-pdf">Download PDF Report</button>
+      <button class="btn-secondary" id="btn-clear">Clear</button>
+    </div>
+    <div id="error-box"></div>
+  </div>
+
+  <div class="spinner" id="spinner"></div>
+
+  <div id="results" class="card">
+    <h2>Results</h2>
+    <div id="verdict-box"></div>
+
+    <div class="comparator-section">
+      <h3>AI Analysis (Groq LLM)</h3>
+      <div id="llm-issues"></div>
+    </div>
+
+    <div class="comparator-section">
+      <h3>Rule-Based Baseline</h3>
+      <div id="baseline-issues"></div>
+    </div>
+
+    <div class="meta-row">
+      <span>Baseline latency: <b id="baseline-latency">—</b></span>
+      <span>LLM latency: <b id="llm-latency">—</b></span>
+    </div>
+  </div>
+</main>
+
+<script>
+  // Health check on load
+  (async () => {
+    try {
+      const d = await (await fetch("/health")).json();
+      const badge = document.getElementById("health-badge");
+      badge.textContent = d.status === "ok" ? `API ok · ${d.model}` : "API error";
+      if (d.status === "ok") badge.classList.add("ok");
+    } catch {
+      document.getElementById("health-badge").textContent = "API unreachable";
+    }
+  })();
+
+  function renderIssues(containerId, issues) {
+    const el = document.getElementById(containerId);
+    if (!issues.length) {
+      el.innerHTML = '<p class="no-issues">No issues detected.</p>';
+      return;
+    }
+    el.innerHTML = issues.map(i => `
+      <div class="issue-card issue-${i.issue_type}">
+        <div class="issue-type">${i.issue_type}</div>
+        <div>${i.description}</div>
+      </div>`).join("");
+  }
+
+  function setLoading(on) {
+    document.getElementById("spinner").style.display = on ? "block" : "none";
+    document.getElementById("btn-compare").disabled = on;
+    document.getElementById("btn-pdf").disabled = on;
+  }
+
+  function showError(msg) {
+    const b = document.getElementById("error-box");
+    b.textContent = msg;
+    b.style.display = "block";
+  }
+
+  function clearError() {
+    const b = document.getElementById("error-box");
+    b.style.display = "none";
+    b.textContent = "";
+  }
+
+  function getInputs() {
+    return {
+      transcript: document.getElementById("transcript").value.trim(),
+      summary:    document.getElementById("summary").value.trim(),
+    };
+  }
+
+  // Analyse button
+  document.getElementById("btn-compare").addEventListener("click", async () => {
+    const { transcript, summary } = getInputs();
+    if (!transcript || !summary) { showError("Both transcript and summary are required."); return; }
+    clearError();
+    setLoading(true);
+    document.getElementById("results").style.display = "none";
+    try {
+      const r = await fetch("/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript, summary }),
+      });
+      if (!r.ok) { showError(`Server error: ${r.status}`); return; }
+      const data = await r.json();
+
+      const verdictBox = document.getElementById("verdict-box");
+      if (!data.llm.issues.length && !data.baseline.issues.length) {
+        verdictBox.className = "verdict-box verdict-clean";
+        verdictBox.textContent = "No issues found. The summary accurately reflects the transcript.";
+      } else {
+        verdictBox.className = "verdict-box verdict-issues";
+        verdictBox.textContent =
+          `Found ${data.llm.issues.length} issue(s) via AI analysis. The summary may not fully represent the transcript.`;
+      }
+
+      renderIssues("llm-issues",      data.llm.issues);
+      renderIssues("baseline-issues", data.baseline.issues);
+
+      document.getElementById("baseline-latency").textContent =
+        `${(data.baseline.latency_seconds * 1000).toFixed(1)} ms`;
+      document.getElementById("llm-latency").textContent =
+        `${(data.llm.latency_seconds * 1000).toFixed(0)} ms`;
+
+      document.getElementById("results").style.display = "block";
+    } catch {
+      showError("Request failed. Is the API running?");
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // PDF download button
+  document.getElementById("btn-pdf").addEventListener("click", async () => {
+    const { transcript, summary } = getInputs();
+    if (!transcript || !summary) { showError("Both transcript and summary are required."); return; }
+    clearError();
+    setLoading(true);
+    try {
+      const r = await fetch("/report/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript, summary }),
+      });
+      if (!r.ok) { showError(`Server error: ${r.status}`); return; }
+      const blob = await r.blob();
+      const a = Object.assign(document.createElement("a"), {
+        href: URL.createObjectURL(blob),
+        download: "infoguard_report.pdf",
+      });
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      showError("PDF request failed. Is the API running?");
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // Clear button
+  document.getElementById("btn-clear").addEventListener("click", () => {
+    document.getElementById("transcript").value = "";
+    document.getElementById("summary").value = "";
+    document.getElementById("results").style.display = "none";
+    clearError();
+  });
+</script>
+</body>
+</html>

@@ -134,10 +134,8 @@ The baseline is the right choice when speed and zero-cost operation matter and i
 - Benchmark is small (12 cases) and synthetic
 - Baseline cannot handle semantic equivalence (e.g. "$75" vs "seventy-five dollars")
 - LLM comparator is subject to rate limits and model changes
-- No caching — repeated benchmark runs consume API tokens
 
 ### Next Steps
 - Larger and more diverse benchmark
 - Semantic similarity layer for the baseline
-- LLM response caching
 - Support for additional providers (OpenAI, Gemini)

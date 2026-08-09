@@ -19,6 +19,7 @@ reports/*.json
 
 # Data processed
 data/processed/
+data/cache/
 
 # IDE
 .vscode/
